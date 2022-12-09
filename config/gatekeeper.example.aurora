@@ -1,0 +1,32 @@
+run_service = Process(
+  name = 'run_service',
+  cmdline = '''
+    chmod +x ./gatekeeper.pex &&
+    unzip ./gatekeeper.pex &&
+    unzip -o ./gatekeeper-res.zip &&
+    ./gatekeeper.pex --port {{thermos.ports[http]}} --env {{environment}}
+  ''')
+
+stage_src = Packer.copy('gatekeeper')
+stage_res = Packer.copy('gatekeeper-res')
+
+task = SequentialTask(
+  name = 'gatekeeper',
+  processes = [stage_src, stage_res, run_service],
+  resources = Resources(cpu = 2, ram = 8 * GB, disk = 1 * GB))
+
+job = Service(
+  name = 'gatekeeper',
+  task = task,
+  role = 'gatekeepers',
+  contact = 'CHANGE_ME',
+  announce = Announcer(),
+  constraints = job_constraints)
+
+jobs = [
+  job(cluster = 'dc1', environment = 'devel', instances = 1),
+  job(cluster = 'dc2a', environment = 'test', instances = 1),
+  job(cluster = 'dc2b', environment = 'test', instances = 1),
+  job(cluster = 'dc3a', environment = 'prod', instances = 1),
+  job(cluster = 'dc3b', environment = 'prod', instances = 1),
+]
